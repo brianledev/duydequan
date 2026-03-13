@@ -113,7 +113,7 @@ export default function MenuTable({ menuType }: MenuTableProps) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
         <button
           onClick={() => setModal({ mode: "add" })}
           className="btn-gold px-6 py-2 text-sm tracking-wider"
@@ -137,14 +137,14 @@ export default function MenuTable({ menuType }: MenuTableProps) {
           placeholder="Tìm kiếm món..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37] min-w-[200px]"
+          className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37] sm:min-w-[200px]"
           style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
         />
 
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+          className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37]"
           style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
         >
           <option value="">Tất cả danh mục</option>
@@ -153,7 +153,7 @@ export default function MenuTable({ menuType }: MenuTableProps) {
           ))}
         </select>
 
-        <span className="flex items-center text-gray-500 text-sm ml-auto" style={{ fontFamily: "Cinzel, serif" }}>
+        <span className="flex items-center text-gray-500 text-sm sm:ml-auto" style={{ fontFamily: "Cinzel, serif" }}>
           {filteredItems.length} món
         </span>
       </div>
@@ -170,9 +170,9 @@ export default function MenuTable({ menuType }: MenuTableProps) {
               <tr>
                 <th className="text-left w-16">Ảnh</th>
                 <th className="text-left">Tên món</th>
-                <th className="text-left">Danh mục</th>
+                <th className="text-left hidden sm:table-cell">Danh mục</th>
                 <th className="text-left">Giá</th>
-                <th className="text-center w-24">Nổi bật</th>
+                <th className="text-center w-24 hidden sm:table-cell">Nổi bật</th>
                 <th className="text-center w-32">Thao tác</th>
               </tr>
             </thead>
@@ -205,12 +205,12 @@ export default function MenuTable({ menuType }: MenuTableProps) {
                     )}
                   </td>
                   <td>
-                    <span className="text-xs text-[#D4AF37] bg-[rgba(212,175,55,0.1)] px-2 py-1 whitespace-nowrap">{item.category}</span>
+                    <span className="text-xs text-[#D4AF37] bg-[rgba(212,175,55,0.1)] px-2 py-1 whitespace-nowrap hidden sm:inline">{item.category}</span>
                   </td>
                   <td>
                     <span className="text-[#D4AF37] font-semibold text-sm">{formatPrice(item.price)}</span>
                   </td>
-                  <td className="text-center">
+                  <td className="text-center hidden sm:table-cell">
                     <span className={`text-xs ${item.is_featured ? "text-[#D4AF37]" : "text-gray-700"}`}>
                       {item.is_featured ? "✦ Có" : "—"}
                     </span>

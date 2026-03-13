@@ -50,9 +50,9 @@ export default function UsersPage() {
       <Toaster position="top-right" toastOptions={{ style: { background: "#1A1A1A", color: "#F5F5DC", border: "1px solid rgba(212,175,55,0.3)" } }} />
       <AdminSidebar onLogout={handleLogout} />
 
-      <main className="flex-1 p-8 lg:ml-64">
-        <div className="mb-8">
-          <h1 className="text-3xl text-[#D4AF37] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
+      <main className="flex-1 p-4 lg:p-8 lg:ml-64">
+        <div className="mb-6 lg:mb-8">
+          <h1 className="text-xl lg:text-3xl text-[#D4AF37] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
             QUẢN LÝ ADMIN
           </h1>
           <div className="h-px bg-gradient-to-r from-[#D4AF37] to-transparent mb-1 w-40" />
@@ -77,7 +77,7 @@ export default function UsersPage() {
                 <tr>
                   <th className="text-left">#</th>
                   <th className="text-left">Tên đăng nhập</th>
-                  <th className="text-left">Ngày tạo</th>
+                  <th className="text-left hidden sm:table-cell">Ngày tạo</th>
                   <th className="text-center w-48">Thao tác</th>
                 </tr>
               </thead>
@@ -90,17 +90,17 @@ export default function UsersPage() {
                         {user.username}
                       </span>
                     </td>
-                    <td className="text-gray-500 text-sm">
+                    <td className="text-gray-500 text-sm hidden sm:table-cell">
                       {new Date(user.created_at).toLocaleDateString("vi-VN")}
                     </td>
                     <td>
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => setResetModal(user)}
-                          className="text-xs px-3 py-1 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] transition-colors"
+                          className="text-xs px-2 sm:px-3 py-1 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] transition-colors"
                           style={{ fontFamily: "Cinzel, serif" }}
                         >
-                          Đặt lại mật khẩu
+                          <span className="hidden sm:inline">Đặt lại </span>Mật khẩu
                         </button>
                         <button
                           onClick={() => handleDelete(user.id, user.username)}

@@ -19,9 +19,9 @@ export default function MenuThuongPage() {
       <Toaster position="top-right" toastOptions={{ style: { background: "#1A1A1A", color: "#F5F5DC", border: "1px solid rgba(212,175,55,0.3)" } }} />
       <AdminSidebar onLogout={handleLogout} />
 
-      <main className="flex-1 p-8 lg:ml-64">
-        <div className="mb-8">
-          <h1 className="text-3xl text-[#D4AF37] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
+      <main className="flex-1 p-4 lg:p-8 lg:ml-64">
+        <div className="mb-6 lg:mb-8">
+          <h1 className="text-xl lg:text-3xl text-[#D4AF37] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
             QUẢN LÝ MENU THƯỜNG
           </h1>
           <div className="h-px bg-gradient-to-r from-[#D4AF37] to-transparent mb-1 w-48" />
