@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Cinzel, Cormorant_Garamond } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -58,7 +59,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" className={`${playfair.variable} ${cinzel.variable} ${cormorant.variable}`}>
-      <body className="luxury-bg antialiased">{children}</body>
+      <body className="luxury-bg antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
