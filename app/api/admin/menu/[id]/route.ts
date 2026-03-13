@@ -35,6 +35,18 @@ export async function PUT(
       },
     });
 
+    await prisma.menuItemHistory.create({
+      data: {
+        action: "update",
+        item_id: item.id,
+        item_name: item.name,
+        menu_type: item.menu_type,
+        category: item.category,
+        old_data: JSON.parse(JSON.stringify(existing)),
+        new_data: JSON.parse(JSON.stringify(item)),
+      },
+    });
+
     return NextResponse.json({ item });
   } catch (error) {
     console.error("Update menu item error:", error);
@@ -58,6 +70,17 @@ export async function DELETE(
     if (existing.image && existing.image.includes("blob.vercel-storage.com")) {
       try { await del(existing.image); } catch { /* ignore */ }
     }
+
+    await prisma.menuItemHistory.create({
+      data: {
+        action: "delete",
+        item_id: existing.id,
+        item_name: existing.name,
+        menu_type: existing.menu_type,
+        category: existing.category,
+        old_data: JSON.parse(JSON.stringify(existing)),
+      },
+    });
 
     await prisma.menuItem.delete({ where: { id } });
 

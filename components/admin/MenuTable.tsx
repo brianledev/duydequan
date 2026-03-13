@@ -1,10 +1,34 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { MenuItem } from "@/types";
 import { formatPrice } from "@/lib/utils";
+
+// ─── Password skip key per menuType ───────────────────────────────────────────
+function getPwSkipKey(menuType: string) { return `pw_skip_until_${menuType}`; }
+function isPwSkipped(menuType: string): boolean {
+  if (typeof window === "undefined") return false;
+  const val = localStorage.getItem(getPwSkipKey(menuType));
+  if (!val) return false;
+  return Date.now() < parseInt(val);
+}
+function setPwSkip(menuType: string) {
+  localStorage.setItem(getPwSkipKey(menuType), String(Date.now() + 15 * 60 * 1000));
+}
+
+interface HistoryRecord {
+  id: number;
+  action: string;
+  item_id: number;
+  item_name: string;
+  menu_type: string;
+  category: string;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  created_at: string;
+}
 
 interface MenuTableProps {
   menuType: "thuong" | "vip";
@@ -34,13 +58,48 @@ interface ModalData {
 }
 
 export default function MenuTable({ menuType }: MenuTableProps) {
+  const [activeTab, setActiveTab] = useState<"items" | "history">("items");
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalData | null>(null);
   const [filterCategory, setFilterCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Delete with password confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+
+  // History
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [clearHistoryModal, setClearHistoryModal] = useState(false);
+  const [clearPw, setClearPw] = useState("");
+  const [clearPwError, setClearPwError] = useState("");
+  const [clearingHistory, setClearingHistory] = useState(false);
+
   const categories = menuType === "thuong" ? CATEGORIES_THUONG : CATEGORIES_VIP;
+
+  const handleClearHistory = async () => {
+    if (!clearPw) { setClearPwError("Vui lòng nhập mật khẩu"); return; }
+    setClearingHistory(true);
+    setClearPwError("");
+    try {
+      const res = await fetch("/api/admin/menu/history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: clearPw, menuType }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setClearPwError(data.error || "Lỗi xóa lịch sử"); return; }
+      setHistory([]);
+      setClearHistoryModal(false);
+      setClearPw("");
+      toast.success(`Đã xóa ${data.deleted} lịch sử`);
+    } catch {
+      setClearPwError("Lỗi kết nối");
+    } finally {
+      setClearingHistory(false);
+    }
+  };
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -49,26 +108,70 @@ export default function MenuTable({ menuType }: MenuTableProps) {
       const res = await fetch(`/api/admin/menu?${params}`);
       const data = await res.json();
       setItems(data.items || []);
-    } catch (e) {
+    } catch {
       toast.error("Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
   }, [menuType]);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/admin/menu/history?type=${menuType}&limit=100`);
+      const data = await res.json();
+      setHistory(data.history || []);
+    } catch {
+      toast.error("Lỗi tải lịch sử");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [menuType]);
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Bạn có chắc muốn xóa "${name}"?`)) return;
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => {
+    if (activeTab === "history") fetchHistory();
+  }, [activeTab, fetchHistory]);
+
+  // Called when Xóa button is clicked
+  const onDeleteClick = (id: number, name: string) => {
+    if (isPwSkipped(menuType)) {
+      // Already verified recently — ask only simple confirm
+      doDelete(id, name);
+    } else {
+      setDeleteTarget({ id, name });
+    }
+  };
+
+  const doDelete = async (id: number, name: string) => {
     try {
       const res = await fetch(`/api/admin/menu/${id}`, { method: "DELETE" });
       if (res.ok) {
-        toast.success("Đã xóa món ăn");
+        toast.success(`Đã xóa "${name}"`);
         fetchItems();
+        if (activeTab === "history") fetchHistory();
       } else {
         toast.error("Lỗi xóa món ăn");
+      }
+    } catch {
+      toast.error("Lỗi kết nối");
+    }
+  };
+
+  const handleRestore = async (record: HistoryRecord) => {
+    try {
+      const res = await fetch("/api/admin/menu/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history_id: record.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Đã khôi phục "${record.item_name}"`);
+        fetchHistory();
+        fetchItems();
+      } else {
+        toast.error(data.error || "Lỗi khôi phục");
       }
     } catch {
       toast.error("Lỗi kết nối");
@@ -110,144 +213,296 @@ export default function MenuTable({ menuType }: MenuTableProps) {
     }
   };
 
+  const actionLabel: Record<string, { label: string; color: string }> = {
+    create: { label: "Thêm mới", color: "text-green-400" },
+    update: { label: "Chỉnh sửa", color: "text-blue-400" },
+    delete: { label: "Đã xóa", color: "text-red-400" },
+    restored: { label: "Đã khôi phục", color: "text-yellow-400" },
+  };
+
   return (
     <div>
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
-        <button
-          onClick={() => setModal({ mode: "add" })}
-          className="btn-gold px-6 py-2 text-sm tracking-wider"
-          style={{ fontFamily: "Cinzel, serif" }}
-        >
-          + Thêm Món
-        </button>
-
-        <button
-          onClick={handleSyncImages}
-          disabled={syncing}
-          className="px-4 py-2 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] text-sm tracking-wider transition-colors disabled:opacity-50"
-          style={{ fontFamily: "Cinzel, serif" }}
-          title={`Sync ảnh từ menu ${menuType === "thuong" ? "VIP" : "Thường"} sang đây`}
-        >
-          {syncing ? "Đang sync..." : `🔄 Sync ảnh từ ${menuType === "thuong" ? "VIP" : "Thường"}`}
-        </button>
-
-        <input
-          type="text"
-          placeholder="Tìm kiếm món..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37] sm:min-w-[200px]"
-          style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
-        />
-
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37]"
-          style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
-        >
-          <option value="">Tất cả danh mục</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-
-        <span className="flex items-center text-gray-500 text-sm sm:ml-auto" style={{ fontFamily: "Cinzel, serif" }}>
-          {filteredItems.length} món
-        </span>
+      {/* Tabs */}
+      <div className="flex border-b border-[rgba(212,175,55,0.15)] mb-6">
+        {(["items", "history"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2 text-sm tracking-wider transition-colors border-b-2 -mb-px ${
+              activeTab === tab
+                ? "border-[#D4AF37] text-[#D4AF37]"
+                : "border-transparent text-gray-500 hover:text-gray-300"
+            }`}
+            style={{ fontFamily: "Cinzel, serif" }}
+          >
+            {tab === "items" ? "📋 Danh sách" : "🕐 Lịch sử"}
+          </button>
+        ))}
       </div>
 
-      {/* Table */}
-      {loading ? (
-        <div className="text-center py-20 text-[#D4AF37] animate-pulse" style={{ fontFamily: "Cinzel, serif" }}>
-          ĐANG TẢI...
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="luxury-table w-full">
-            <thead>
-              <tr>
-                <th className="text-left w-16">Ảnh</th>
-                <th className="text-left">Tên món</th>
-                <th className="text-left hidden sm:table-cell">Danh mục</th>
-                <th className="text-left">Giá</th>
-                <th className="text-center w-24 hidden sm:table-cell">Nổi bật</th>
-                <th className="text-center w-32">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div className="w-12 h-12 bg-[#1A1A1A] overflow-hidden relative">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                          sizes="48px"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-700 text-lg">
-                          🍲
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <p className="text-white text-sm font-semibold" style={{ fontFamily: "Playfair Display, serif" }}>
-                      {item.name}
-                    </p>
-                    {item.description && (
-                      <p className="text-gray-600 text-xs mt-0.5 line-clamp-1">{item.description}</p>
-                    )}
-                  </td>
-                  <td>
-                    <span className="text-xs text-[#D4AF37] bg-[rgba(212,175,55,0.1)] px-2 py-1 whitespace-nowrap hidden sm:inline">{item.category}</span>
-                  </td>
-                  <td>
-                    <span className="text-[#D4AF37] font-semibold text-sm">{formatPrice(item.price)}</span>
-                  </td>
-                  <td className="text-center hidden sm:table-cell">
-                    <span className={`text-xs ${item.is_featured ? "text-[#D4AF37]" : "text-gray-700"}`}>
-                      {item.is_featured ? "✦ Có" : "—"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={() => setModal({ mode: "edit", item })}
-                        className="text-xs px-3 py-1 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] transition-colors"
-                        style={{ fontFamily: "Cinzel, serif" }}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id, item.name)}
-                        className="text-xs px-3 py-1 border border-[rgba(220,50,50,0.3)] text-red-400 hover:bg-[rgba(220,50,50,0.1)] transition-colors"
-                        style={{ fontFamily: "Cinzel, serif" }}
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+      {/* ── TAB: ITEMS ── */}
+      {activeTab === "items" && (
+        <>
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
+            <button
+              onClick={() => setModal({ mode: "add" })}
+              className="btn-gold px-6 py-2 text-sm tracking-wider"
+              style={{ fontFamily: "Cinzel, serif" }}
+            >
+              + Thêm Món
+            </button>
+
+            <button
+              onClick={handleSyncImages}
+              disabled={syncing}
+              className="px-4 py-2 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] text-sm tracking-wider transition-colors disabled:opacity-50"
+              style={{ fontFamily: "Cinzel, serif" }}
+              title={`Sync ảnh từ menu ${menuType === "thuong" ? "VIP" : "Thường"} sang đây`}
+            >
+              {syncing ? "Đang sync..." : `🔄 Sync ảnh từ ${menuType === "thuong" ? "VIP" : "Thường"}`}
+            </button>
+
+            <input
+              type="text"
+              placeholder="Tìm kiếm món..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37] sm:min-w-[200px]"
+              style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
+            />
+
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full sm:w-auto px-4 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+              style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
               ))}
-              {filteredItems.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-600" style={{ fontFamily: "Cinzel, serif" }}>
-                    Chưa có món ăn nào
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </select>
+
+            <span className="flex items-center text-gray-500 text-sm sm:ml-auto" style={{ fontFamily: "Cinzel, serif" }}>
+              {filteredItems.length} món
+            </span>
+          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="text-center py-20 text-[#D4AF37] animate-pulse" style={{ fontFamily: "Cinzel, serif" }}>
+              ĐANG TẢI...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="luxury-table w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left w-16">Ảnh</th>
+                    <th className="text-left">Tên món</th>
+                    <th className="text-left hidden sm:table-cell">Danh mục</th>
+                    <th className="text-left">Giá</th>
+                    <th className="text-center w-24 hidden sm:table-cell">Nổi bật</th>
+                    <th className="text-center w-32">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredItems.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="w-12 h-12 bg-[#1A1A1A] overflow-hidden relative">
+                          {item.image ? (
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                              sizes="48px"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-700 text-lg">
+                              🍲
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <p className="text-white text-sm font-semibold" style={{ fontFamily: "Playfair Display, serif" }}>
+                          {item.name}
+                        </p>
+                        {item.description && (
+                          <p className="text-gray-600 text-xs mt-0.5 line-clamp-1">{item.description}</p>
+                        )}
+                      </td>
+                      <td>
+                        <span className="text-xs text-[#D4AF37] bg-[rgba(212,175,55,0.1)] px-2 py-1 whitespace-nowrap hidden sm:inline">{item.category}</span>
+                      </td>
+                      <td>
+                        <span className="text-[#D4AF37] font-semibold text-sm">{formatPrice(item.price)}</span>
+                      </td>
+                      <td className="text-center hidden sm:table-cell">
+                        <span className={`text-xs ${item.is_featured ? "text-[#D4AF37]" : "text-gray-700"}`}>
+                          {item.is_featured ? "✦ Có" : "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => setModal({ mode: "edit", item })}
+                            className="text-xs px-3 py-1 border border-[rgba(212,175,55,0.3)] text-[#D4AF37] hover:bg-[rgba(212,175,55,0.1)] transition-colors"
+                            style={{ fontFamily: "Cinzel, serif" }}
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => onDeleteClick(item.id, item.name)}
+                            className="text-xs px-3 py-1 border border-[rgba(220,50,50,0.3)] text-red-400 hover:bg-[rgba(220,50,50,0.1)] transition-colors"
+                            style={{ fontFamily: "Cinzel, serif" }}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredItems.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-12 text-gray-600" style={{ fontFamily: "Cinzel, serif" }}>
+                        Chưa có món ăn nào
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── TAB: HISTORY ── */}
+      {activeTab === "history" && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-gray-500 text-sm" style={{ fontFamily: "Cinzel, serif" }}>
+              100 thao tác gần nhất
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchHistory}
+                className="text-xs text-[#D4AF37] hover:opacity-70 transition-opacity"
+                style={{ fontFamily: "Cinzel, serif" }}
+              >
+                🔁 Làm mới
+              </button>
+              <button
+                onClick={() => { setClearHistoryModal(true); setClearPw(""); setClearPwError(""); }}
+                className="text-xs px-3 py-1.5 border border-red-800 text-red-400 hover:bg-red-900/20 transition-colors"
+                style={{ fontFamily: "Cinzel, serif" }}
+              >
+                🗑 Xóa toàn bộ
+              </button>
+            </div>
+          </div>
+
+          {/* Clear History Modal */}
+          {clearHistoryModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div className="bg-[#111] border border-[rgba(212,175,55,0.3)] p-6 w-[360px] max-w-[90vw]">
+                <h3 className="text-[#D4AF37] text-lg mb-1" style={{ fontFamily: "Cinzel, serif" }}>Xóa toàn bộ lịch sử</h3>
+                <p className="text-gray-500 text-xs mb-4" style={{ fontFamily: "Cinzel, serif" }}>Nhập mật khẩu để xác nhận</p>
+                <input
+                  type="password"
+                  value={clearPw}
+                  onChange={(e) => setClearPw(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleClearHistory()}
+                  placeholder="Mật khẩu"
+                  className="w-full px-3 py-2 bg-[#1A1A1A] border border-[rgba(212,175,55,0.2)] text-white text-sm focus:outline-none focus:border-[#D4AF37] mb-2"
+                  autoFocus
+                />
+                {clearPwError && <p className="text-red-400 text-xs mb-3">{clearPwError}</p>}
+                <div className="flex gap-3 mt-3">
+                  <button
+                    onClick={() => setClearHistoryModal(false)}
+                    className="flex-1 py-2 text-sm border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors"
+                    style={{ fontFamily: "Cinzel, serif" }}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleClearHistory}
+                    disabled={clearingHistory}
+                    className="flex-1 py-2 text-sm bg-red-900/40 border border-red-800 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50"
+                    style={{ fontFamily: "Cinzel, serif" }}
+                  >
+                    {clearingHistory ? "Đang xóa..." : "Xóa tất cả"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {historyLoading ? (
+            <div className="text-center py-20 text-[#D4AF37] animate-pulse" style={{ fontFamily: "Cinzel, serif" }}>
+              ĐANG TẢI...
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-20 text-gray-600" style={{ fontFamily: "Cinzel, serif" }}>
+              Chưa có lịch sử thao tác
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map((record) => {
+                const info = actionLabel[record.action] ?? { label: record.action, color: "text-gray-400" };
+                const oldPrice = record.old_data?.price as string | undefined;
+                const newPrice = record.new_data?.price as string | undefined;
+                const priceChanged = record.action === "update" && oldPrice && newPrice && oldPrice !== newPrice;
+                return (
+                  <div
+                    key={record.id}
+                    className="flex items-start gap-3 bg-[#111] border border-[rgba(212,175,55,0.1)] p-4 hover:border-[rgba(212,175,55,0.25)] transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className={`text-xs font-semibold ${info.color}`} style={{ fontFamily: "Cinzel, serif" }}>
+                          {info.label}
+                        </span>
+                        <span className="text-white text-sm font-semibold truncate" style={{ fontFamily: "Playfair Display, serif" }}>
+                          {record.item_name}
+                        </span>
+                        <span className="text-xs text-[#D4AF37] bg-[rgba(212,175,55,0.1)] px-2 py-0.5 whitespace-nowrap">
+                          {record.category}
+                        </span>
+                      </div>
+                      {priceChanged && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Giá: <span className="line-through text-gray-600">{formatPrice(oldPrice!)}</span>
+                          {" → "}
+                          <span className="text-[#D4AF37]">{formatPrice(newPrice!)}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-600 mt-0.5" style={{ fontFamily: "Cinzel, serif" }}>
+                        {new Date(record.created_at).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                    {record.action === "delete" && (
+                      <button
+                        onClick={() => handleRestore(record)}
+                        className="flex-shrink-0 text-xs px-3 py-1.5 border border-green-800 text-green-400 hover:bg-green-900/20 transition-colors"
+                        style={{ fontFamily: "Cinzel, serif" }}
+                      >
+                        ↩ Khôi phục
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal edit/add */}
       {modal && (
         <MenuItemModal
           mode={modal.mode}
@@ -261,10 +516,131 @@ export default function MenuTable({ menuType }: MenuTableProps) {
           }}
         />
       )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          name={deleteTarget.name}
+          menuType={menuType}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirmed={() => {
+            doDelete(deleteTarget.id, deleteTarget.name);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
+// ─── Delete Confirm Modal ──────────────────────────────────────────────────────
+interface DeleteConfirmProps {
+  name: string;
+  menuType: string;
+  onCancel: () => void;
+  onConfirmed: () => void;
+}
+
+function DeleteConfirmModal({ name, menuType, onCancel, onConfirmed }: DeleteConfirmProps) {
+  const [password, setPassword] = useState("");
+  const [skipChecked, setSkipChecked] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // auto-focus password input
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  const handleConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/admin/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (skipChecked) setPwSkip(menuType);
+        onConfirmed();
+      } else {
+        setError(data.error || "Mật khẩu không đúng");
+      }
+    } catch {
+      setError("Lỗi kết nối");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+      <div
+        className="bg-[#111] border border-red-900/50 w-full max-w-sm p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-red-400 text-base mb-1" style={{ fontFamily: "Cinzel, serif" }}>
+          XÁC NHẬN XÓA
+        </h3>
+        <p className="text-gray-400 text-sm mb-5">
+          Bạn sắp xóa <span className="text-white font-semibold">&ldquo;{name}&rdquo;</span>. Nhập mật khẩu để xác nhận.
+        </p>
+        <form onSubmit={handleConfirm} className="space-y-4">
+          <div>
+            <input
+              ref={inputRef}
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              placeholder="Mật khẩu của bạn"
+              required
+              className="w-full bg-[#1A1A1A] border border-[rgba(220,50,50,0.4)] text-white px-3 py-2 focus:outline-none focus:border-red-500 text-sm"
+              style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1rem" }}
+            />
+            {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={skipChecked}
+              onChange={(e) => setSkipChecked(e.target.checked)}
+              className="w-4 h-4 accent-[#D4AF37]"
+            />
+            <span className="text-gray-400 text-xs" style={{ fontFamily: "Cinzel, serif" }}>
+              Không hỏi lại trong 15 phút
+            </span>
+          </label>
+
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={verifying || !password}
+              className="flex-1 py-2.5 bg-red-900/40 border border-red-800 text-red-300 hover:bg-red-900/60 transition-colors text-sm disabled:opacity-50"
+              style={{ fontFamily: "Cinzel, serif" }}
+            >
+              {verifying ? "ĐANG XÁC NHẬN..." : "XÁC NHẬN XÓA"}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-2.5 btn-outline-gold text-sm"
+              style={{ fontFamily: "Cinzel, serif" }}
+            >
+              HỦY
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── MenuItemModal ─────────────────────────────────────────────────────────────
 interface ModalProps {
   mode: "add" | "edit";
   item?: MenuItem;

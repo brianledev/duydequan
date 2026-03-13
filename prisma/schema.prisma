@@ -32,6 +32,20 @@ model AdminUser {
   @@map("admin_users")
 }
 
+model MenuItemHistory {
+  id          Int      @id @default(autoincrement())
+  action      String   // 'create' | 'update' | 'delete'
+  item_id     Int
+  item_name   String
+  menu_type   MenuType
+  category    String
+  old_data    Json?
+  new_data    Json?
+  created_at  DateTime @default(now())
+
+  @@map("menu_item_history")
+}
+
 model ContactSettings {
   id               Int     @id @default(autoincrement())
   zalo_enabled     Boolean @default(true)

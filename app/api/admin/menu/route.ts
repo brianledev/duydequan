@@ -55,6 +55,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await prisma.menuItemHistory.create({
+      data: {
+        action: "create",
+        item_id: item.id,
+        item_name: item.name,
+        menu_type: item.menu_type,
+        category: item.category,
+        new_data: JSON.parse(JSON.stringify(item)),
+      },
+    });
+
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
     console.error("Create menu item error:", error);
