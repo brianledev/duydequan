@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MenuItem {
+  id          Int      @id @default(autoincrement())
+  menu_type   MenuType
+  category    String
+  name        String
+  description String?  @db.Text
+  price       String
+  image       String?
+  order_index Int      @default(0)
+  is_featured Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("menu_items")
+}
+
+model AdminUser {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password_hash String
+  created_at    DateTime @default(now())
+
+  @@map("admin_users")
+}
+
+model ContactSettings {
+  id               Int     @id @default(autoincrement())
+  zalo_enabled     Boolean @default(true)
+  zalo_link        String  @default("")
+  facebook_enabled Boolean @default(true)
+  facebook_link    String  @default("")
+  phone_enabled    Boolean @default(true)
+  phone_number     String  @default("")
+  sms_enabled      Boolean @default(false)
+  sms_number       String  @default("")
+  viber_enabled    Boolean @default(false)
+  viber_link       String  @default("")
+
+  @@map("contact_settings")
+}
+
+enum MenuType {
+  thuong
+  vip
+}
