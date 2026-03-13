@@ -16,15 +16,15 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const body = await req.json();
+    const { id: _id, ...data } = await req.json();
 
     let settings = await prisma.contactSettings.findFirst();
     if (!settings) {
-      settings = await prisma.contactSettings.create({ data: body });
+      settings = await prisma.contactSettings.create({ data });
     } else {
       settings = await prisma.contactSettings.update({
         where: { id: settings.id },
-        data: body,
+        data,
       });
     }
 
