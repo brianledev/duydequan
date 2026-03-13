@@ -84,40 +84,40 @@ export default function AdminSidebar({ onLogout }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile header */}
-      <div className="lg:hidden bg-[#0D0D0D] border-b border-[rgba(212,175,55,0.15)] px-4 py-3 flex items-center justify-between">
-        <h2 className="text-[#D4AF37] text-sm font-bold flex items-center gap-2" style={{ fontFamily: "Cinzel, serif" }}>
-          <Image src="/images/logo.png" alt="Duy Dê 2" width={36} height={36} className="object-contain" />
-          DUY DÊ 2 – ADMIN
-        </h2>
-        <button onClick={onLogout} className="text-gray-500 hover:text-red-400 text-xs" style={{ fontFamily: "Cinzel, serif" }}>
-          ĐĂNG XUẤT
-        </button>
+      {/* Mobile header + nav */}
+      <div className="lg:hidden">
+        <div className="bg-[#0D0D0D] border-b border-[rgba(212,175,55,0.15)] px-4 py-3 flex items-center justify-between">
+          <h2 className="text-[#D4AF37] text-sm font-bold flex items-center gap-2" style={{ fontFamily: "Cinzel, serif" }}>
+            <Image src="/images/logo.png" alt="Duy Dê 2" width={36} height={36} className="object-contain" />
+            DUY DÊ 2 – ADMIN
+          </h2>
+          <button onClick={onLogout} className="text-gray-500 hover:text-red-400 text-xs" style={{ fontFamily: "Cinzel, serif" }}>
+            ĐĂNG XUẤT
+          </button>
+        </div>
+        <nav className="flex overflow-x-auto bg-[#0D0D0D] border-b border-[rgba(212,175,55,0.1)] px-2">
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/admin"
+                ? pathname === "/admin"
+                : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex-shrink-0 px-3 py-2 text-xs border-b-2 transition-all whitespace-nowrap ${
+                  isActive
+                    ? "border-[#D4AF37] text-[#D4AF37]"
+                    : "border-transparent text-gray-500 hover:text-[#D4AF37]"
+                }`}
+                style={{ fontFamily: "Cinzel, serif" }}
+              >
+                {item.icon} {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-
-      {/* Mobile nav */}
-      <nav className="lg:hidden flex overflow-x-auto bg-[#0D0D0D] border-b border-[rgba(212,175,55,0.1)] px-2">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/admin"
-              ? pathname === "/admin"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-shrink-0 px-3 py-2 text-xs border-b-2 transition-all whitespace-nowrap ${
-                isActive
-                  ? "border-[#D4AF37] text-[#D4AF37]"
-                  : "border-transparent text-gray-500 hover:text-[#D4AF37]"
-              }`}
-              style={{ fontFamily: "Cinzel, serif" }}
-            >
-              {item.icon} {item.label}
-            </Link>
-          );
-        })}
-      </nav>
     </>
   );
 }
