@@ -5,9 +5,10 @@ import Image from "next/image";
 
 interface HeroSectionProps {
   onMenuSelect: (type: "thuong" | "vip") => void;
+  showVip: boolean;
 }
 
-export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
+export default function HeroSection({ onMenuSelect, showVip }: HeroSectionProps) {
   return (
     <section
       className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
@@ -61,7 +62,7 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
           className="gold-shimmer text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
-          style={{ fontFamily: "Cinzel, serif", letterSpacing: "0.05em" }}
+          style={{ fontFamily: "Playfair Display, serif", letterSpacing: "0.05em" }}
         >
           DUY DÊ 2
         </motion.h1>
@@ -84,7 +85,7 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1 }}
           className="text-[#C8B882] text-xl md:text-2xl lg:text-3xl mb-4 italic"
-          style={{ fontFamily: "Cormorant Garamond, serif", fontWeight: 300 }}
+          style={{ fontFamily: "var(--font-cormorant), Cormorant Garamond, serif", fontWeight: 300 }}
         >
           &ldquo;Tinh hoa ẩm thực — Hương vị đậm đà&rdquo;
         </motion.p>
@@ -94,7 +95,7 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.2 }}
           className="text-gray-500 text-sm tracking-widest uppercase mb-14"
-          style={{ fontFamily: "Cinzel, serif" }}
+          style={{ fontFamily: "Playfair Display, serif" }}
         >
           ◆ Hân hạnh phục vụ quý khách ◆
         </motion.p>
@@ -111,24 +112,26 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
             whileTap={{ scale: 0.98 }}
             onClick={() => onMenuSelect("thuong")}
             className="btn-gold px-10 py-4 text-sm tracking-widest uppercase rounded-none"
-            style={{ fontFamily: "Cinzel, serif" }}
+            style={{ fontFamily: "Playfair Display, serif" }}
           >
-            ◆ Menu Thường ◆
+            {showVip ? "◆ Menu Thường ◆" : "◆ Menu ◆"}
           </motion.button>
 
-          <motion.button
-            whileHover={{
-              scale: 1.05,
-              boxShadow: "0 0 30px rgba(212,175,55,0.3)",
-              backgroundColor: "rgba(212,175,55,0.1)",
-            }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onMenuSelect("vip")}
-            className="btn-outline-gold px-10 py-4 text-sm tracking-widest uppercase rounded-none"
-            style={{ fontFamily: "Cinzel, serif" }}
-          >
-            ◆ Menu VIP ◆
-          </motion.button>
+          {showVip && (
+            <motion.button
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 0 30px rgba(212,175,55,0.3)",
+                backgroundColor: "rgba(212,175,55,0.1)",
+              }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onMenuSelect("vip")}
+              className="btn-outline-gold px-10 py-4 text-sm tracking-widest uppercase rounded-none"
+              style={{ fontFamily: "Playfair Display, serif" }}
+            >
+              ◆ Menu VIP ◆
+            </motion.button>
+          )}
         </motion.div>
 
         {/* Info row */}
@@ -137,11 +140,16 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 1.8 }}
           className="mt-16 flex flex-wrap justify-center gap-8 text-gray-500 text-xs tracking-widest uppercase"
-          style={{ fontFamily: "Cinzel, serif" }}
+          style={{ fontFamily: "Playfair Display, serif" }}
         >
           <span>✦ Mở cửa: 10:00 – 22:00</span>
           <span>✦ Phòng VIP sang trọng</span>
-          <span>✦ Đặt bàn: liên hệ ngay</span>
+          <button
+            onClick={() => document.getElementById("contact-section")?.scrollIntoView({ behavior: "smooth" })}
+            className="hover:text-[#D4AF37] transition-colors cursor-pointer"
+          >
+            ✦ Đặt bàn: liên hệ ngay
+          </button>
         </motion.div>
       </div>
 
@@ -152,7 +160,7 @@ export default function HeroSection({ onMenuSelect }: HeroSectionProps) {
         transition={{ delay: 2.5, duration: 1 }}
         className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
       >
-        <span className="text-[#D4AF37] text-xs tracking-widest uppercase" style={{ fontFamily: "Cinzel, serif" }}>
+        <span className="text-[#D4AF37] text-xs tracking-widest uppercase" style={{ fontFamily: "Playfair Display, serif" }}>
           Khám phá
         </span>
         <motion.div

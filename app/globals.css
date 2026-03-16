@@ -140,7 +140,7 @@ body {
 .btn-gold {
   background: linear-gradient(135deg, #B8960C, #D4AF37, #B8960C);
   color: #0A0A0A;
-  font-family: var(--font-cinzel), serif;
+  font-family: var(--font-playfair), Playfair Display, serif;
   font-weight: 600;
   letter-spacing: 0.05em;
   transition: all 0.3s ease;
@@ -156,7 +156,7 @@ body {
   border: 1px solid #D4AF37;
   color: #D4AF37;
   background: transparent;
-  font-family: var(--font-cinzel), serif;
+  font-family: var(--font-playfair), Playfair Display, serif;
   font-weight: 500;
   letter-spacing: 0.05em;
   transition: all 0.3s ease;

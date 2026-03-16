@@ -6,17 +6,18 @@ import Image from "next/image";
 import { MenuItem } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
-export default function FeaturedItems() {
+export default function FeaturedItems({ showVip = false }: { showVip?: boolean }) {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/menu?type=thuong").then((r) => r.json()),
-      fetch("/api/menu?type=vip").then((r) => r.json()),
-    ])
-      .then(([thuong, vip]) => {
-        const allItems = [...(thuong.items || []), ...(vip.items || [])];
+    const fetches = [fetch("/api/menu?type=thuong").then((r) => r.json())];
+    if (showVip) {
+      fetches.push(fetch("/api/menu?type=vip").then((r) => r.json()));
+    }
+    Promise.all(fetches)
+      .then((results) => {
+        const allItems = results.flatMap((d) => d.items || []);
         const featured = allItems.filter((i: MenuItem) => i.is_featured).slice(0, 6);
         // If no featured items, show first 6 hot-pot items
         if (featured.length === 0) {
@@ -30,7 +31,7 @@ export default function FeaturedItems() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [showVip]);
 
   if (loading || items.length === 0) return null;
 
@@ -47,13 +48,13 @@ export default function FeaturedItems() {
         >
           <p
             className="text-[#D4AF37] text-xs tracking-[0.4em] uppercase mb-4"
-            style={{ fontFamily: "Cinzel, serif" }}
+            style={{ fontFamily: "Playfair Display, serif" }}
           >
             ✦ Đặc Sản Nhà Hàng ✦
           </p>
           <h2
             className="text-3xl md:text-4xl text-white mb-4"
-            style={{ fontFamily: "Cinzel, serif", letterSpacing: "0.05em" }}
+            style={{ fontFamily: "Playfair Display, serif", letterSpacing: "0.05em" }}
           >
             MÓN NỔI BẬT
           </h2>
@@ -109,7 +110,7 @@ function FeaturedCard({ item }: { item: MenuItem }) {
         <div className="absolute top-3 left-3">
           <span
             className="text-[10px] tracking-widest uppercase text-[#D4AF37] bg-[rgba(10,10,10,0.8)] px-3 py-1 border border-[rgba(212,175,55,0.3)]"
-            style={{ fontFamily: "Cinzel, serif" }}
+            style={{ fontFamily: "Playfair Display, serif" }}
           >
             {item.category}
           </span>
@@ -141,7 +142,7 @@ function FeaturedCard({ item }: { item: MenuItem }) {
           </span>
           <span
             className="text-[rgba(212,175,55,0.5)] text-xs tracking-wider"
-            style={{ fontFamily: "Cinzel, serif" }}
+            style={{ fontFamily: "Playfair Display, serif" }}
           >
             {item.menu_type === "vip" ? "VIP" : "THƯỜNG"}
           </span>

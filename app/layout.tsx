@@ -27,12 +27,12 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Duy Dê 2 | Nhà Hàng Cao Cấp",
+  title: "Duy Dê 2 | Đặc Sản Dê Tươi",
   description:
     "Duy Dê 2 - Thưởng thức ẩm thực dê tươi ngon, nước lẩu đậm đà với không gian sang trọng. Phục vụ tận tâm từ 10:00 - 22:00 hàng ngày.",
-  keywords: ["lẩu dê", "nhà hàng dê", "duy dê 2", "ẩm thực dê", "nhà hàng cao cấp"],
+  keywords: ["lẩu dê", "nhà hàng dê", "duy dê 2", "ẩm thực dê", "đặc sản dê tươi"],
   openGraph: {
-    title: "Duy Dê 2 | Nhà Hàng Cao Cấp",
+    title: "Duy Dê 2 | Đặc Sản Dê Tươi",
     description:
       "Thưởng thức ẩm thực dê tươi ngon, nước lẩu đậm đà với không gian sang trọng 5 sao.",
     type: "website",
